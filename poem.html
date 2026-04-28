@@ -416,19 +416,11 @@ function renderPoem(poem) {
     poem.overview && poem.overview.emotion_tone ? `<span class="stat-badge">${poem.overview.emotion_tone}</span>` : '',
   ].join('');
 
-  // 原文 - 跳过第一行标题
+  // 原文 - 直接显示原文档完整内容，保持自然换行，不做任何切分
   const rawArr = poem.raw_lines || [];
-  const textLines = rawArr.length > 0 ? rawArr.slice(1) : [];
-  const stanzaCount = (poem.stats && poem.stats.stanza_count) || 1;
-  const linesPerStanza = Math.ceil(textLines.length / stanzaCount);
-  let textHtml = '';
-  for (let i = 0; i < stanzaCount; i++) {
-    const chunk = textLines.slice(i * linesPerStanza, (i + 1) * linesPerStanza);
-    if (chunk.length === 0) continue;
-    textHtml += `<div class="poem-stanza-num">第 ${i + 1} 节</div>
-    <div class="poem-text">${escapeHtml(chunk.join('\n'))}</div>
-    ${i < stanzaCount - 1 ? '<br>' : ''}`;
-  }
+  const textHtml = rawArr.length > 0
+    ? `<div class="poem-text">${escapeHtml(rawArr.join('\n'))}</div>`
+    : `<div class="poem-text">暂无原文内容</div>`;
   document.getElementById('section-text').innerHTML = `
     <div class="poem-text-box">${textHtml}</div>`;
 
