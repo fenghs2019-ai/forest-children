@@ -1,0 +1,11 @@
+{
+  "num": "126",
+  "char": "雾",
+  "images": [
+    "image.jpg"
+  ],
+  "audios": [
+    "audio-1.mp3",
+    "audio-2.mp3"
+  ]
+}

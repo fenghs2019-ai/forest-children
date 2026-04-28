@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>调试测试</title>
+<style>
+body{font-family:sans-serif;padding:20px;background:#f5f5f5}
+#result{background:#fff;padding:20px;border-radius:8px;white-space:pre-wrap;font-size:14px}
+.error{color:#c00}
+</style>
+</head>
+<body>
+<h1>POEM_DATA 加载测试</h1>
+<div id="result">读取中...</div>
+
+<script>
+// 模拟 POEM_DATA（从 poem.html 复制部分数据）
+const POEM_DATA = {
+  "01": {
+    "id": "001",
+    "num": 1,
+    "char": "羽",
+    "title": "羽",
+    "full_title": "森林的孩子·羽",
+    "series": "森林的孩子",
+    "author_note": "叶渡",
+    "original_text": "没有星星的夜\n月亮镶嵌在天空\n桂影随风婆娑\n花香弥漫在树间\n你想飞上月亮\n折枝桂花给隔壁的小鸟\n老树送你他的叶子\n十个夜晚做成翅膀\n站在树顶\n展开翅膀\n你飞呀\n却跌落下来\n小鸟问你花在哪里\n你说月亮是个小气鬼\n她把自己变小\n把花藏起来了",
+    "raw_lines": [
+      "没有星星的夜","月亮镶嵌在天空","桂影随风婆娑","花香弥漫在树间",
+      "你想飞上月亮","折枝桂花给隔壁的小鸟","老树送你他的叶子","十个夜晚做成翅膀",
+      "站在树顶","展开翅膀","你飞呀","却跌落下来",
+      "小鸟问你花在哪里","你说月亮是个小气鬼","她把自己变小","把花藏起来了"
+    ],
+    "stats": {"total_chars": 103,"line_count": 16,"stanza_count": 4}
+  }
+};
+
+// 测试
+const params = new URLSearchParams(window.location.search);
+const id = params.get('id') || '01';
+
+const result = document.getElementById('result');
+
+try {
+  const poem = POEM_DATA[id] || POEM_DATA[String(parseInt(id, 10))];
+  
+  if (!poem) {
+    result.innerHTML = '<p class="error">未找到编号 ' + id + '</p>';
+    result.innerHTML += '<p>可用key: ' + Object.keys(POEM_DATA).join(', ') + '</p>';
+  } else {
+    result.innerHTML = '✅ POEM_DATA 加载成功！\n\n';
+    result.innerHTML += '诗文: ' + poem.char + '\n';
+    result.innerHTML += '行数: ' + poem.raw_lines.length + '\n';
+    result.innerHTML += '分节数: ' + poem.stats.stanza_count + '\n\n';
+    result.innerHTML += '原文:\n' + poem.original_text;
+  }
+} catch (e) {
+  result.innerHTML = '<p class="error">错误: ' + e.message + '</p>';
+}
+</script>
+</body>
+</html>

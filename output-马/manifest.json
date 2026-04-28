@@ -1,0 +1,11 @@
+{
+  "num": "080",
+  "char": "马",
+  "images": [
+    "image-1.jpg",
+    "image-2.jpg"
+  ],
+  "audios": [
+    "audio.mp3"
+  ]
+}

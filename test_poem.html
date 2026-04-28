@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>测试 - 诗篇加载</title>
+</head>
+<body>
+<h1>POEM_DATA 测试</h1>
+<div id="output">加载中...</div>
+
+<script>
+const output = document.getElementById('output');
+const params = new URLSearchParams(window.location.search);
+const id = params.get('id') || '01';
+
+if (typeof POEM_DATA !== 'undefined') {
+  const poem = POEM_DATA[id] || POEM_DATA[String(parseInt(id, 10))];
+  if (poem) {
+    output.innerHTML = `
+      <h2>诗文编号: ${poem.num}</h2>
+      <h3>标题: ${poem.char}</h3>
+      <pre>${poem.original_text || '无 original_text'}</pre>
+      <hr>
+      <p>raw_lines 数量: ${poem.raw_lines ? poem.raw_lines.length : '无'}</p>
+      <p>stanzas: ${poem.stanzas ? JSON.stringify(poem.stanzas) : '无'}</p>
+    `;
+  } else {
+    output.innerHTML = '<p style="color:red">未找到编号 ' + id + ' 的诗篇</p>';
+    output.innerHTML += '<p>可用的key: ' + Object.keys(POEM_DATA).slice(0,10).join(', ') + '...</p>';
+  }
+} else {
+  output.innerHTML = '<p style="color:red">POEM_DATA 未定义！</p>';
+}
+</script>
+</body>
+</html>

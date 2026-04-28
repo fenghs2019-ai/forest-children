@@ -1,0 +1,11 @@
+{
+  "num": "125",
+  "char": "城",
+  "images": [
+    "image.jpg"
+  ],
+  "audios": [
+    "audio-1.mp3",
+    "audio-2.mp3"
+  ]
+}
