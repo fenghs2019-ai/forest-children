@@ -1,0 +1,14 @@
+# 同步状态文件（本地）
+.sync_state.json
+
+# 腾讯云密钥（本地）
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# OS
+.DS_Store
+Thumbs.db
