@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>爱（AI）解诗河 · 全篇导览</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0d1f12;--bg2:#102016;--bg3:#152b1a;
+  --accent:#52c276;--accent2:#76d896;--accent3:#a8e6c0;
+  --text:#e8f5e9;--text2:#b2dfdb;--text3:#80cbc4;
+  --gold:#f9d56e;--gold2:#fbe599;
+  --card:#1e3a24;--card2:#243d2a;
+}
+body{background:var(--bg);color:var(--text);font-family:"Microsoft YaHei","PingFang SC",sans-serif;min-height:100vh;overflow-x:hidden}
+
+.header{
+  background:linear-gradient(180deg,var(--bg2),var(--bg));
+  padding:48px 24px 32px;text-align:center;
+  border-bottom:1px solid rgba(82,194,118,0.15);
+  position:relative;overflow:hidden;
+}
+.header::before{
+  content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse at 50% -20%,rgba(82,194,118,0.1),transparent 60%);
+  pointer-events:none;
+}
+.header-series{font-size:13px;letter-spacing:4px;color:var(--accent);text-transform:uppercase;margin-bottom:12px;}
+.header-title{
+  font-size:clamp(24px,5vw,42px);font-weight:900;
+  background:linear-gradient(135deg,var(--gold),var(--accent2),var(--gold2));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  margin-bottom:8px;filter:drop-shadow(0 0 20px rgba(249,213,110,0.2));
+}
+.header-subtitle{font-size:16px;color:var(--text3);margin-bottom:24px;letter-spacing:2px;}
+.header-desc{font-size:14px;color:var(--text3);max-width:560px;margin:0 auto 24px;line-height:1.8;}
+.stats-row{display:flex;justify-content:center;gap:24px;flex-wrap:wrap;margin-bottom:8px;}
+.stat-item{text-align:center}
+.stat-num{font-size:32px;font-weight:900;color:var(--gold);font-variant-numeric:tabular-nums;}
+.stat-label{font-size:12px;color:var(--text3);letter-spacing:1px;margin-top:2px;}
+
+
+.toolbar{
+  display:flex;flex-direction:column;align-items:center;gap:16px;
+  padding:20px 24px;background:rgba(13,31,18,0.95);
+  border-bottom:1px solid rgba(82,194,118,0.1);
+}
+.search-row,.filter-row{display:flex;justify-content:center;width:100%;flex-wrap:wrap;gap:10px}
+.search-box{
+  display:flex;align-items:center;gap:8px;
+  background:var(--card);border:1px solid rgba(82,194,118,0.25);
+  border-radius:20px;padding:6px 16px;flex:0 0 auto;
+}
+.search-box input{background:none;border:none;outline:none;color:var(--text);font-size:14px;width:160px;}
+.search-box input::placeholder{color:var(--text3)}
+.filter-btn{
+  background:var(--card);border:1px solid rgba(82,194,118,0.2);
+  border-radius:16px;padding:6px 14px;font-size:13px;
+  color:var(--text3);cursor:pointer;transition:all 0.2s;
+}
+.filter-btn:hover,.filter-btn.active{background:rgba(82,194,118,0.15);border-color:var(--accent);color:var(--accent);}
+
+.river-container{max-width:1200px;margin:0 auto;padding:32px 20px;}
+.river-title{font-size:13px;color:var(--text3);letter-spacing:3px;text-align:center;margin-bottom:24px;}
+
+.chars-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:10px;}
+.char-btn{
+  aspect-ratio:1;border-radius:14px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  cursor:pointer;border:1px solid transparent;transition:all 0.2s;
+  position:relative;overflow:hidden;text-decoration:none;
+}
+.char-btn.done{background:linear-gradient(135deg,var(--card),var(--card2));border-color:rgba(82,194,118,0.35);}
+.char-btn.done:hover{
+  transform:translateY(-3px) scale(1.05);
+  border-color:var(--accent);
+  box-shadow:0 8px 24px rgba(82,194,118,0.25);
+  background:linear-gradient(135deg,var(--card2),#2e4d36);
+}
+.char-num{font-size:10px;color:var(--text3);margin-bottom:2px;}
+.char-word{font-size:28px;font-weight:700;color:var(--accent2);line-height:1;transition:color 0.2s;}
+.char-btn.done:hover .char-word{color:var(--gold)}
+.char-theme{font-size:9px;color:var(--text3);margin-top:3px;opacity:0;transition:opacity 0.2s;}
+.char-btn.done:hover .char-theme{opacity:1}
+
+.char-btn.hidden{display:none}
+.char-btn.highlight .char-word{color:var(--gold)!important}
+.char-btn.highlight{border-color:var(--gold)!important;box-shadow:0 0 16px rgba(249,213,110,0.3)}
+.no-result-msg{display:none;text-align:center;padding:48px 20px;font-size:15px;color:var(--text3);font-style:italic;letter-spacing:2px;line-height:2}
+.no-result-msg.show{display:block}
+
+.footer{
+  text-align:center;padding:32px 16px;color:var(--text3);font-size:13px;
+  border-top:1px solid rgba(82,194,118,0.1);line-height:2;
+}
+@media(max-width:480px){
+  .chars-grid{grid-template-columns:repeat(auto-fill,minmax(56px,1fr));gap:7px;}
+  .char-word{font-size:22px}
+  .toolbar{padding:10px 12px}
+}
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-series">森林的孩子 &middot; 故事诗系列</div>
+  <div class="header-title">爱（AI）解诗河</div>
+  <div class="header-subtitle">每一个字，都是一个故事</div>
+  <div class="header-desc">老生  著 &middot; 162首故事诗 &middot; AI结构化解析 &middot; 完整呈现</div>
+  <div class="stats-row">
+    <div class="stat-item"><div class="stat-num">162</div><div class="stat-label">总篇数</div></div>
+    <div class="stat-item"><div class="stat-num" id="doneCount">162</div><div class="stat-label">已解析</div></div>
+    <div class="stat-item"><div class="stat-num">8</div><div class="stat-label">分析维度</div></div>
+    <div class="stat-item"><div class="stat-num">100%</div><div class="stat-label">完成率</div></div>
+  </div>
+</header>
+
+<div class="toolbar">
+  <div class="search-row">
+    <div class="search-box">
+      <span style="color:var(--text3)">&#128269;</span>
+      <input type="text" id="searchInput" placeholder="搜索诗字…" oninput="filterPoems(this.value)">
+    </div>
+  </div>
+  <div class="filter-row">
+    <button class="filter-btn" data-filter="自然" onclick="setFilter('自然',this)">自然四季</button>
+    <button class="filter-btn" data-filter="动物" onclick="setFilter('动物',this)">森林生灵</button>
+    <button class="filter-btn" data-filter="情感" onclick="setFilter('情感',this)">情感心境</button>
+    <button class="filter-btn" data-filter="哲思" onclick="setFilter('哲思',this)">人生哲思</button>
+    <button class="filter-btn" data-filter="精神" onclick="setFilter('精神',this)">精神追求</button>
+  </div>
+</div>
+
+<div class="river-container">
+  <div class="river-title">&middot; 点击任意汉字，进入诗篇解析 &middot;</div>
+  <div class="chars-grid" id="charsGrid"></div>
+  <div id="noResultMsg" class="no-result-msg">抱歉哦，写了这个字的叶子，还在悄悄地长，等等，等等看。</div>
+</div>
+
+<footer class="footer">
+  <div>《森林的孩子》故事诗 &middot; 老生  著</div>
+  <div>爱（AI）解诗河 &middot; AI结构化解析平台</div>
+  <div style="margin-top:8px;font-size:11px;color:var(--text3);opacity:0.6">共162篇 &middot; 含原文、概述、文化背景、人物、时间线、价值观、章节拆解、文学手法</div>
+</footer>
+
+<script>
+const NAV_DATA = {"01":{"num":1,"char":"羽","theme":"动物","emotion":"平静沉思","chars":103,"status":"completed"},"02":{"num":2,"char":"桥","theme":"哲思","emotion":"平静沉思","chars":24,"status":"completed"},"03":{"num":3,"char":"秋","theme":"自然","emotion":"平静沉思","chars":21,"status":"completed"},"04":{"num":4,"char":"念","theme":"思念","emotion":"平静沉思","chars":46,"status":"completed"},"05":{"num":5,"char":"鱼","theme":"动物","emotion":"温暖积极","chars":57,"status":"completed"},"06":{"num":6,"char":"悠","theme":"人生","emotion":"平静沉思","chars":27,"status":"completed"},"07":{"num":7,"char":"路","theme":"旅途","emotion":"平静沉思","chars":31,"status":"completed"},"08":{"num":8,"char":"守","theme":"哲思","emotion":"平静沉思","chars":22,"status":"completed"},"09":{"num":9,"char":"寻","theme":"哲思","emotion":"平静沉思","chars":15,"status":"completed"},"10":{"num":10,"char":"蒲","theme":"生命","emotion":"温暖积极","chars":66,"status":"completed"},"11":{"num":11,"char":"怜","theme":"情感","emotion":"平静沉思","chars":31,"status":"completed"},"12":{"num":12,"char":"匠","theme":"人生","emotion":"温暖积极","chars":23,"status":"completed"},"13":{"num":13,"char":"荷","theme":"生命","emotion":"平静沉思","chars":73,"status":"completed"},"14":{"num":14,"char":"思","theme":"人生","emotion":"平静沉思","chars":39,"status":"completed"},"15":{"num":15,"char":"梦","theme":"思念","emotion":"温暖积极","chars":226,"status":"completed"},"16":{"num":16,"char":"树","theme":"生命","emotion":"温暖积极","chars":181,"status":"completed"},"17":{"num":17,"char":"萤","theme":"动物","emotion":"平静沉思","chars":92,"status":"completed"},"18":{"num":18,"char":"昙","theme":"人生","emotion":"伤感深沉","chars":117,"status":"completed"},"19":{"num":19,"char":"风","theme":"自然","emotion":"温暖积极","chars":125,"status":"completed"},"20":{"num":20,"char":"舞","theme":"精神","emotion":"温暖积极","chars":116,"status":"completed"},"21":{"num":21,"char":"叶","theme":"生命","emotion":"平静沉思","chars":156,"status":"completed"},"22":{"num":22,"char":"洞","theme":"人生","emotion":"温暖积极","chars":185,"status":"completed"},"23":{"num":23,"char":"雨","theme":"自然","emotion":"伤感深沉","chars":211,"status":"completed"},"24":{"num":24,"char":"石","theme":"人生","emotion":"伤感深沉","chars":184,"status":"completed"},"25":{"num":25,"char":"蜗","theme":"动物","emotion":"平静沉思","chars":204,"status":"completed"},"26":{"num":26,"char":"蜜","theme":"动物","emotion":"温暖积极","chars":161,"status":"completed"},"27":{"num":27,"char":"星","theme":"自然","emotion":"温暖积极","chars":195,"status":"completed"},"28":{"num":28,"char":"月","theme":"自然","emotion":"平静沉思","chars":206,"status":"completed"},"29":{"num":29,"char":"心","theme":"人生","emotion":"平静沉思","chars":98,"status":"completed"},"30":{"num":30,"char":"逢","theme":"人生","emotion":"平静沉思","chars":112,"status":"completed"},"31":{"num":31,"char":"网","theme":"人生","emotion":"温暖积极","chars":214,"status":"completed"},"32":{"num":32,"char":"诗","theme":"精神","emotion":"温暖积极","chars":126,"status":"completed"},"33":{"num":33,"char":"琴","theme":"精神","emotion":"平静沉思","chars":167,"status":"completed"},"34":{"num":34,"char":"棋","theme":"精神","emotion":"温暖积极","chars":290,"status":"completed"},"35":{"num":35,"char":"波","theme":"人生","emotion":"温暖积极","chars":299,"status":"completed"},"36":{"num":36,"char":"暖","theme":"人生","emotion":"温暖积极","chars":163,"status":"completed"},"37":{"num":37,"char":"忆","theme":"思念","emotion":"温暖积极","chars":219,"status":"completed"},"38":{"num":38,"char":"静","theme":"时光","emotion":"平静沉思","chars":162,"status":"completed"},"39":{"num":39,"char":"夜","theme":"时光","emotion":"温暖积极","chars":278,"status":"completed"},"40":{"num":40,"char":"钓","theme":"人生","emotion":"温暖积极","chars":165,"status":"completed"},"41":{"num":41,"char":"术","theme":"精神","emotion":"温暖积极","chars":198,"status":"completed"},"42":{"num":42,"char":"螺","theme":"动物","emotion":"温暖积极","chars":140,"status":"completed"},"43":{"num":43,"char":"铃","theme":"动物","emotion":"温暖积极","chars":168,"status":"completed"},"44":{"num":44,"char":"果","theme":"人生","emotion":"温暖积极","chars":179,"status":"completed"},"45":{"num":45,"char":"歌","theme":"精神","emotion":"温暖积极","chars":214,"status":"completed"},"46":{"num":46,"char":"幻","theme":"精神","emotion":"平静沉思","chars":290,"status":"completed"},"47":{"num":47,"char":"云","theme":"自然","emotion":"温暖积极","chars":233,"status":"completed"},"48":{"num":48,"char":"蝶","theme":"动物","emotion":"平静沉思","chars":168,"status":"completed"},"49":{"num":49,"char":"露","theme":"自然","emotion":"温暖积极","chars":134,"status":"completed"},"50":{"num":50,"char":"虹","theme":"自然","emotion":"温暖积极","chars":168,"status":"completed"},"51":{"num":51,"char":"凤","theme":"动物","emotion":"平静沉思","chars":153,"status":"completed"},"52":{"num":52,"char":"画","theme":"精神","emotion":"温暖积极","chars":168,"status":"completed"},"53":{"num":53,"char":"舟","theme":"人生","emotion":"伤感深沉","chars":238,"status":"completed"},"54":{"num":54,"char":"狐","theme":"动物","emotion":"伤感深沉","chars":209,"status":"completed"},"55":{"num":55,"char":"蜓","theme":"动物","emotion":"温暖积极","chars":113,"status":"completed"},"56":{"num":56,"char":"龟","theme":"动物","emotion":"温暖积极","chars":290,"status":"completed"},"57":{"num":57,"char":"枭","theme":"动物","emotion":"平静沉思","chars":176,"status":"completed"},"58":{"num":58,"char":"鹿","theme":"动物","emotion":"温暖积极","chars":436,"status":"completed"},"59":{"num":59,"char":"冰","theme":"自然","emotion":"深沉内敛","chars":188,"status":"completed"},"60":{"num":60,"char":"芽","theme":"生命","emotion":"温暖积极","chars":260,"status":"completed"},"61":{"num":61,"char":"醒","theme":"时光","emotion":"温暖积极","chars":247,"status":"completed"},"62":{"num":62,"char":"游","theme":"旅途","emotion":"温暖积极","chars":234,"status":"completed"},"63":{"num":63,"char":"聚","theme":"人生","emotion":"平静沉思","chars":28,"status":"completed"},"64":{"num":64,"char":"雪","theme":"自然","emotion":"温暖积极","chars":271,"status":"completed"},"65":{"num":65,"char":"蛇","theme":"动物","emotion":"平静沉思","chars":262,"status":"completed"},"66":{"num":66,"char":"眠","theme":"时光","emotion":"温暖积极","chars":139,"status":"completed"},"67":{"num":67,"char":"醉","theme":"时光","emotion":"温暖积极","chars":220,"status":"completed"},"68":{"num":68,"char":"藏","theme":"人生","emotion":"深沉内敛","chars":185,"status":"completed"},"69":{"num":69,"char":"妖","theme":"人生","emotion":"平静沉思","chars":187,"status":"completed"},"70":{"num":70,"char":"愿","theme":"人生","emotion":"温暖积极","chars":145,"status":"completed"},"71":{"num":71,"char":"年","theme":"时光","emotion":"平静沉思","chars":210,"status":"completed"},"72":{"num":72,"char":"光","theme":"时光","emotion":"温暖积极","chars":170,"status":"completed"},"73":{"num":73,"char":"诱","theme":"人生","emotion":"温暖积极","chars":206,"status":"completed"},"74":{"num":74,"char":"冬","theme":"自然","emotion":"深沉内敛","chars":200,"status":"completed"},"75":{"num":75,"char":"春","theme":"自然","emotion":"温暖积极","chars":293,"status":"completed"},"76":{"num":76,"char":"融","theme":"自然","emotion":"温暖积极","chars":226,"status":"completed"},"77":{"num":77,"char":"明","theme":"时光","emotion":"温暖积极","chars":216,"status":"completed"},"78":{"num":78,"char":"雀","theme":"动物","emotion":"温暖积极","chars":221,"status":"completed"},"79":{"num":79,"char":"跑","theme":"旅途","emotion":"温暖积极","chars":231,"status":"completed"},"80":{"num":80,"char":"马","theme":"动物","emotion":"平静沉思","chars":194,"status":"completed"},"81":{"num":81,"char":"夏","theme":"自然","emotion":"温暖积极","chars":224,"status":"completed"},"82":{"num":82,"char":"门","theme":"人生","emotion":"温暖积极","chars":455,"status":"completed"},"83":{"num":83,"char":"镜","theme":"人生","emotion":"伤感深沉","chars":322,"status":"completed"},"84":{"num":84,"char":"湖","theme":"人生","emotion":"温暖积极","chars":209,"status":"completed"},"85":{"num":85,"char":"伤","theme":"情感","emotion":"深沉内敛","chars":213,"status":"completed"},"86":{"num":86,"char":"默","theme":"情感","emotion":"平静沉思","chars":180,"status":"completed"},"87":{"num":87,"char":"香","theme":"人生","emotion":"温暖积极","chars":273,"status":"completed"},"88":{"num":88,"char":"恕","theme":"情感","emotion":"温暖积极","chars":228,"status":"completed"},"89":{"num":89,"char":"悲","theme":"情感","emotion":"伤感深沉","chars":206,"status":"completed"},"90":{"num":90,"char":"怒","theme":"情感","emotion":"深沉内敛","chars":289,"status":"completed"},"91":{"num":91,"char":"悦","theme":"情感","emotion":"温暖积极","chars":259,"status":"completed"},"92":{"num":92,"char":"悟","theme":"情感","emotion":"温暖积极","chars":204,"status":"completed"},"93":{"num":93,"char":"困","theme":"情感","emotion":"深沉内敛","chars":320,"status":"completed"},"94":{"num":94,"char":"丝","theme":"人生","emotion":"温暖积极","chars":348,"status":"completed"},"95":{"num":95,"char":"远","theme":"思念","emotion":"伤感深沉","chars":194,"status":"completed"},"96":{"num":96,"char":"战","theme":"人生","emotion":"伤感深沉","chars":216,"status":"completed"},"97":{"num":97,"char":"和","theme":"哲思","emotion":"温暖积极","chars":360,"status":"completed"},"98":{"num":98,"char":"智","theme":"哲思","emotion":"温暖积极","chars":235,"status":"completed"},"99":{"num":99,"char":"晴","theme":"自然","emotion":"温暖积极","chars":330,"status":"completed"},"100":{"num":100,"char":"爱","theme":"情感","emotion":"温暖积极","chars":204,"status":"completed"},"101":{"num":101,"char":"晓","theme":"时光","emotion":"平静沉思","chars":314,"status":"completed"},"102":{"num":102,"char":"怕","theme":"成长","emotion":"深沉内敛","chars":469,"status":"completed"},"103":{"num":103,"char":"想","theme":"思念","emotion":"温暖积极","chars":232,"status":"completed"},"104":{"num":104,"char":"赢","theme":"成长","emotion":"温暖积极","chars":306,"status":"completed"},"105":{"num":105,"char":"累","theme":"成长","emotion":"深沉内敛","chars":219,"status":"completed"},"106":{"num":106,"char":"睡","theme":"人生","emotion":"平静沉思","chars":310,"status":"completed"},"107":{"num":107,"char":"错","theme":"成长","emotion":"深沉内敛","chars":285,"status":"completed"},"108":{"num":108,"char":"病","theme":"成长","emotion":"深沉内敛","chars":289,"status":"completed"},"109":{"num":109,"char":"归","theme":"思念","emotion":"温暖积极","chars":234,"status":"completed"},"110":{"num":110,"char":"缘","theme":"成长","emotion":"温暖积极","chars":201,"status":"completed"},"111":{"num":111,"char":"生","theme":"生命","emotion":"温暖积极","chars":271,"status":"completed"},"112":{"num":112,"char":"种","theme":"成长","emotion":"温暖积极","chars":246,"status":"completed"},"113":{"num":113,"char":"惑","theme":"情感","emotion":"平静沉思","chars":290,"status":"completed"},"114":{"num":114,"char":"变","theme":"哲思","emotion":"温暖积极","chars":245,"status":"completed"},"115":{"num":115,"char":"洲","theme":"人生","emotion":"温暖积极","chars":262,"status":"completed"},"116":{"num":116,"char":"诺","theme":"哲思","emotion":"平静沉思","chars":359,"status":"completed"},"117":{"num":117,"char":"信","theme":"哲思","emotion":"温暖积极","chars":327,"status":"completed"},"118":{"num":118,"char":"义","theme":"哲思","emotion":"温暖积极","chars":286,"status":"completed"},"119":{"num":119,"char":"颜","theme":"人生","emotion":"温暖积极","chars":279,"status":"completed"},"120":{"num":120,"char":"葵","theme":"生命","emotion":"温暖积极","chars":350,"status":"completed"},"121":{"num":121,"char":"法","theme":"哲思","emotion":"平静沉思","chars":385,"status":"completed"},"122":{"num":122,"char":"尘","theme":"人生","emotion":"温暖积极","chars":279,"status":"completed"},"123":{"num":123,"char":"落","theme":"生命","emotion":"温暖积极","chars":537,"status":"completed"},"124":{"num":124,"char":"时","theme":"时光","emotion":"平静沉思","chars":290,"status":"completed"},"125":{"num":125,"char":"城","theme":"人生","emotion":"平静沉思","chars":310,"status":"completed"},"126":{"num":126,"char":"雾","theme":"人生","emotion":"温暖积极","chars":167,"status":"completed"},"127":{"num":127,"char":"别","theme":"思念","emotion":"伤感深沉","chars":315,"status":"completed"},"128":{"num":128,"char":"启","theme":"人生","emotion":"平静沉思","chars":245,"status":"completed"},"129":{"num":129,"char":"解","theme":"人生","emotion":"温暖积极","chars":328,"status":"completed"},"130":{"num":130,"char":"补","theme":"成长","emotion":"温暖积极","chars":265,"status":"completed"},"131":{"num":131,"char":"息","theme":"人生","emotion":"平静沉思","chars":190,"status":"completed"},"132":{"num":132,"char":"榛","theme":"生命","emotion":"温暖积极","chars":365,"status":"completed"},"133":{"num":133,"char":"知","theme":"哲思","emotion":"平静沉思","chars":330,"status":"completed"},"134":{"num":134,"char":"晨","theme":"自然","emotion":"温暖积极","chars":323,"status":"completed"},"135":{"num":135,"char":"行","theme":"旅途","emotion":"平静沉思","chars":289,"status":"completed"},"136":{"num":136,"char":"倦","theme":"人生","emotion":"温暖积极","chars":241,"status":"completed"},"137":{"num":137,"char":"森","theme":"生命","emotion":"温暖积极","chars":467,"status":"completed"},"138":{"num":138,"char":"试","theme":"成长","emotion":"温暖积极","chars":428,"status":"completed"},"139":{"num":139,"char":"梯","theme":"旅途","emotion":"平静沉思","chars":364,"status":"completed"},"140":{"num":140,"char":"潜","theme":"旅途","emotion":"温暖积极","chars":334,"status":"completed"},"141":{"num":141,"char":"渡","theme":"旅途","emotion":"平静沉思","chars":316,"status":"completed"},"142":{"num":142,"char":"忘","theme":"思念","emotion":"温暖积极","chars":371,"status":"completed"},"143":{"num":143,"char":"愁","theme":"情感","emotion":"深沉内敛","chars":231,"status":"completed"},"144":{"num":144,"char":"清","theme":"人生","emotion":"平静沉思","chars":152,"status":"completed"},"145":{"num":145,"char":"懂","theme":"成长","emotion":"温暖积极","chars":193,"status":"completed"},"146":{"num":146,"char":"流","theme":"旅途","emotion":"伤感深沉","chars":330,"status":"completed"},"147":{"num":147,"char":"停","theme":"旅途","emotion":"平静沉思","chars":365,"status":"completed"},"148":{"num":148,"char":"元","theme":"时光","emotion":"平静沉思","chars":201,"status":"completed"},"149":{"num":149,"char":"望","theme":"思念","emotion":"温暖积极","chars":242,"status":"completed"},"150":{"num":150,"char":"闯","theme":"旅途","emotion":"温暖积极","chars":468,"status":"completed"},"151":{"num":151,"char":"空","theme":"旅途","emotion":"平静沉思","chars":252,"status":"completed"},"152":{"num":152,"char":"真","theme":"哲思","emotion":"平静沉思","chars":519,"status":"completed"},"153":{"num":153,"char":"闲","theme":"旅途","emotion":"平静沉思","chars":517,"status":"completed"},"154":{"num":154,"char":"离","theme":"思念","emotion":"伤感深沉","chars":406,"status":"completed"},"155":{"num":155,"char":"忙","theme":"旅途","emotion":"伤感深沉","chars":397,"status":"completed"},"156":{"num":156,"char":"玩","theme":"人生","emotion":"平静沉思","chars":440,"status":"completed"},"157":{"num":157,"char":"封","theme":"人生","emotion":"深沉内敛","chars":442,"status":"completed"},"158":{"num":158,"char":"破","theme":"人生","emotion":"温暖积极","chars":621,"status":"completed"},"159":{"num":159,"char":"等","theme":"人生","emotion":"温暖积极","chars":200,"status":"completed"},"160":{"num":160,"char":"凡","theme":"人生","emotion":"平静沉思","chars":487,"status":"completed"},"161":{"num":161,"char":"祈","theme":"人生","emotion":"温暖积极","chars":381,"status":"completed"},"162":{"num":162,"char":"别","theme":"思念","emotion":"伤感深沉","chars":127,"status":"completed"}};
+
+const THEME_MAP = {
+  "自然": "秋春夏冬风雨雪雾冰融露虹云晴晨夜明光",
+  "动物": "羽鱼蒲萤蝶龟蛇鹿枭雀马蜗蜜螺铃狐蜓凤蜗",
+  "草木": "荷叶树芽落葵榛果种",
+  "情感": "爱怜悲悦怒恕愁悟困伤默念忆思梦静暖伤",
+  "人生": "路行渡流停望闯空真闲忙时光明年元凡城尘洲门镜舟匠聚钓诱香丝战波暖匠心逢网果香丝聚诱丝藏妖愿门镜湖丝颜倦封破等祈",
+  "精神": "诗琴棋画歌舞幻术智舞",
+  "哲思": "桥守寻和智变真信义诺法",
+  "成长": "试梯潜补息知懂变信义诺法赢累错惑病缘",
+  "思念": "归远想忘别盼忆念想",
+  "旅途": "跑游倦闯空闲离忙停行闯",
+  "生命": "蒲荷树芽果种生落葵榛",
+  "时光": "静夜年光阴晓醒眠醉明晨元时"
+};
+
+function getCharTheme(char) {
+  for (const [theme, chars] of Object.entries(THEME_MAP)) {
+    if (chars.includes(char)) return theme;
+  }
+  return "";
+}
+
+let currentFilter = "";
+
+function renderGrid(data) {
+  const grid = document.getElementById("charsGrid");
+  grid.innerHTML = "";
+  const entries = Object.values(data).sort((a, b) => a.num - b.num);
+  entries.forEach(p => {
+    const numStr = String(p.num).padStart(2, "0");
+    const theme = p.theme || getCharTheme(p.char) || "";
+    const btn = document.createElement("a");
+    btn.className = "char-btn done";
+    btn.href = "./poem.html?id=" + numStr;
+    btn.dataset.filter = theme;
+    btn.dataset.char = p.char;
+    btn.dataset.num = p.num;
+    btn.title = "No." + p.num + " " + p.char + (p.chars ? " · " + p.chars + "字" : "") + (theme ? " · " + theme : "");
+    btn.innerHTML = "<div class=\"char-num\">" + p.num + "</div><div class=\"char-word\">" + p.char + "</div><div class=\"char-theme\">" + theme + "</div>";
+    grid.appendChild(btn);
+  });
+}
+
+function filterPoems(query) {
+  const q = query.trim();
+  let visibleCount = 0;
+  document.querySelectorAll(".char-btn").forEach(btn => {
+    const char = btn.dataset.char || "";
+    const num = btn.dataset.num || "";
+    const matchSearch = !q || char.includes(q) || num.includes(q);
+    const matchFilter = currentFilter === "" || btn.dataset.filter === currentFilter;
+    const visible = matchSearch && matchFilter;
+    btn.classList.toggle("hidden", !visible);
+    btn.classList.toggle("highlight", q.length > 0 && char.includes(q));
+    if (visible) visibleCount++;
+  });
+  const noResultMsg = document.getElementById("noResultMsg");
+  if (q.length > 0 && visibleCount === 0) {
+    noResultMsg.classList.add("show");
+  } else {
+    noResultMsg.classList.remove("show");
+  }
+}
+
+function setFilter(filter, el) {
+  currentFilter = filter;
+  document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
+  if (el) el.classList.add("active");
+  filterPoems(document.getElementById("searchInput").value);
+}
+
+renderGrid(NAV_DATA);
+const doneCount = Object.values(NAV_DATA).filter(p => p.status === "completed").length;
+document.getElementById("doneCount").textContent = doneCount;
+</script>
+</body>
+</html>
