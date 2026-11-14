@@ -12,6 +12,13 @@ import json
 import subprocess
 from pathlib import Path
 
+# 自动加载同目录的 .env 文件（如果存在）
+try:
+    from dotenv import load_dotenv
+    load_dotenv(Path(__file__).parent / '.env')
+except ImportError:
+    pass
+
 # ── 配置 ──────────────────────────────────────────────
 # 请填入你的腾讯云密钥（建议写入同目录 .env 文件，勿提交到 Git）
 SECRET_ID     = os.getenv('COS_SECRET_ID',     '填入你的 SecretId')
@@ -95,9 +102,18 @@ def upload_file(client, local_path, cos_key):
     ct = TYPE_MAP.get(ext, 'application/octet-stream')
     cos_key = cos_key.replace('\\', '/')
 
+    # 缓存策略：HTML/CSS 必须短缓存，否则 CDN 边缘会长期供给旧页面（2026-11-14 踩坑）
+    if ext in ('.html', '.css', '.js', '.json'):
+        cache_ctl = 'no-cache, max-age=0, must-revalidate'
+    elif ext in ('.jpg', '.jpeg', '.png', '.gif', '.svg', '.woff2', '.mp3', '.mp4'):
+        cache_ctl = 'public, max-age=604800'
+    else:
+        cache_ctl = 'public, max-age=3600'
+
     try:
         with open(local_path, 'rb') as f:
-            client.put_object(Bucket=BUCKET, Body=f, Key=cos_key, ContentType=ct)
+            client.put_object(Bucket=BUCKET, Body=f, Key=cos_key,
+                              ContentType=ct, CacheControl=cache_ctl)
         log(f"上传成功: {cos_key}")
         return True
     except Exception as e:
@@ -139,6 +155,7 @@ def main():
     failed = 0
     repo_root = Path(__file__).parent.resolve()
 
+    synced_keys = []
     for rel_path in changed:
         local = repo_root / rel_path
         if not local.is_file():
@@ -147,6 +164,7 @@ def main():
         ok = upload_file(client, str(local), rel_path)
         if ok:
             success += 1
+            synced_keys.append(rel_path)
         else:
             failed += 1
 
@@ -159,6 +177,25 @@ def main():
     log(f"同步完成！成功 {success} 个，失败 {failed} 个")
     log(f"当前 commit: {current_commit[:8]}")
     log(f"腾讯云地址: https://{BUCKET}.cos.{REGION}.myqcloud.com")
+
+    # 6. 尝试刷新 CDN 边缘缓存（需子账号有 cdn:PurgeUrlsCache 权限，未授权则跳过并提示）
+    if success > 0:
+        html_keys = [rel for rel in synced_keys if rel.lower().endswith('.html')]
+        if html_keys:
+            try:
+                from tencentcloud.common import credential as _cred
+                from tencentcloud.cdn.v20180606 import cdn_client as _cc, models as _cm
+                cred = _cred.Credential(SECRET_ID, SECRET_KEY)
+                cli = _cc.CdnClient(cred, REGION)
+                req = _cm.PurgeUrlsCacheRequest()
+                req.Urls = [f"https://forestchildren2015.com/{k.replace(os.sep, '/')}" for k in html_keys]
+                resp = cli.PurgeUrlsCache(req)
+                log(f"CDN 刷新已提交: {len(html_keys)} 个URL, TaskId={resp.TaskId}")
+            except ImportError:
+                log("CDN 刷新跳过: 未安装 tencentcloud-sdk-python-cdn", ok=False)
+            except Exception as e:
+                log(f"CDN 刷新跳过（需在腾讯云控制台手动刷新或给子账号授权 cdn:PurgeUrlsCache）: {str(e)[:120]}", ok=False)
+
     if failed > 0:
         sys.exit(1)
 
