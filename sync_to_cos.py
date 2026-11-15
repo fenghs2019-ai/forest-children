@@ -3,7 +3,8 @@
 """
 森林诗网 → 腾讯云COS 增量同步脚本
 功能：只上传 git 自上次同步以来有变动的文件
-用法：python sync_to_cos.py
+用法：python sync_to_cos.py           # 增量同步
+      python sync_to_cos.py --force   # 强制重传全部页面文件 + 全站 CDN 刷新
 依赖：pip install cos-python-sdk-v5 python-dotenv
 """
 import os
@@ -121,7 +122,12 @@ def upload_file(client, local_path, cos_key):
         return False
 
 # ── 主流程 ───────────────────────────────────────────
+FORCE_PAGES = ['index.html', 'tonghua.html', 'shuowen.html', 'shuqian.html',
+               'list.html', 'new.html', 'forest.css']
+
+
 def main():
+    force = '--force' in sys.argv
     # 1. 凭证检查
     if SECRET_ID == '填入你的 SecretId':
         print("❌ 请先配置 COS 密钥！")
@@ -132,10 +138,14 @@ def main():
         sys.exit(1)
 
     # 2. 获取变更文件
-    changed = get_changed_files()
-    if not changed:
-        log("没有检测到变更，跳过同步")
-        sys.exit(0)
+    if force:
+        changed = [f for f in FORCE_PAGES if (Path(__file__).parent / f).is_file()]
+        log(f"[强制模式] 重传 {len(changed)} 个页面文件")
+    else:
+        changed = get_changed_files()
+        if not changed:
+            log("没有检测到变更，跳过同步")
+            sys.exit(0)
 
     changed = [f for f in changed if not matches_skip(f, SKIP_PATTERNS)]
     log(f"发现 {len(changed)} 个变更文件")
@@ -180,17 +190,20 @@ def main():
 
     # 6. 尝试刷新 CDN 边缘缓存（需子账号有 cdn:PurgeUrlsCache 权限，未授权则跳过并提示）
     if success > 0:
-        html_keys = [rel for rel in synced_keys if rel.lower().endswith('.html')]
+        html_keys = [rel for rel in synced_keys if rel.lower().endswith(('.html', '.css'))]
         if html_keys:
+            urls = [f"https://forestchildren2015.com/{k.replace(os.sep, '/')}" for k in html_keys]
+            if force:
+                urls += ["https://forestchildren2015.com/", "https://forestchildren2015.com/index.html"]
             try:
                 from tencentcloud.common import credential as _cred
                 from tencentcloud.cdn.v20180606 import cdn_client as _cc, models as _cm
                 cred = _cred.Credential(SECRET_ID, SECRET_KEY)
                 cli = _cc.CdnClient(cred, REGION)
                 req = _cm.PurgeUrlsCacheRequest()
-                req.Urls = [f"https://forestchildren2015.com/{k.replace(os.sep, '/')}" for k in html_keys]
+                req.Urls = urls[:200]
                 resp = cli.PurgeUrlsCache(req)
-                log(f"CDN 刷新已提交: {len(html_keys)} 个URL, TaskId={resp.TaskId}")
+                log(f"CDN 刷新已提交: {len(req.Urls)} 个URL, TaskId={resp.TaskId}")
             except ImportError:
                 log("CDN 刷新跳过: 未安装 tencentcloud-sdk-python-cdn", ok=False)
             except Exception as e:
