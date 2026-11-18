@@ -111,7 +111,23 @@ body{background:var(--p);min-height:100vh;display:flex;flex-direction:column;fon
 <div class="footnote">AI 内容由大模型生成，可能会有不准确的地方 · <a href="index.html">森林的孩子</a> · 森林之子 AI 智能体</div>
 
 <script src="agent-data.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@tencent-ai/workbuddy-cloud-sdk@dev/lib/index.global.js"></script>
+<script src="sdk/workbuddy-cloud-sdk.js"></script>
+<script>
+/* SDK 兜底：本地自托管失败时按顺序尝试备用节点 */
+(function () {
+  if (window.WorkBuddyCloud) return;
+  var mirrors = [
+    "https://fastly.jsdelivr.net/npm/@tencent-ai/workbuddy-cloud-sdk@dev/lib/index.global.js",
+    "https://gcore.jsdelivr.net/npm/@tencent-ai/workbuddy-cloud-sdk@dev/lib/index.global.js"
+  ];
+  mirrors.forEach(function (u) {
+    if (window.WorkBuddyCloud) return;
+    var t = document.createElement("script");
+    t.src = u; t.async = false;
+    document.write(t.outerHTML);
+  });
+})();
+</script>
 <script>
 /* ── 云服务配置（来自 WorkBuddy 云服务 publicConfig）── */
 const FC_CONFIG = {
@@ -224,7 +240,9 @@ function buildSystem() {
   return s;
 }
 const SYSTEM_PROMPT = buildSystem();
-const MODEL_ID = "hy4free";
+const MODEL_PRIMARY = "hy4std";              // 混元 Hy4 旗舰（本应用已开通）
+const MODEL_FALLBACKS = ["deepseek-v4.1-flash", "glm-5.3-flash", "space-bunny"];  // 主模型不可用时的降级链
+let MODEL_ID = MODEL_PRIMARY;
 const HISTORY = [];            // 本会话消息（仅内存，不保存）
 const MAX_HISTORY = 12;        // 送入模型的最近消息数
 const conversationId = "fc-" + agentId + "-" + Date.now().toString(36);
@@ -270,13 +288,23 @@ function showErr(m) {
 }
 
 /* ── 对话主流程 ── */
-const cloud = WorkBuddyCloud.createWorkBuddyCloud({
-  endpoint: FC_CONFIG.endpoint,
-  publishableKey: FC_CONFIG.publishableKey
-});
-
 let generating = false, controller = null;
 const input = document.getElementById("input"), sendBtn = document.getElementById("send");
+
+let cloud = null;
+try {
+  if (window.WorkBuddyCloud) {
+    cloud = WorkBuddyCloud.createWorkBuddyCloud({
+      endpoint: FC_CONFIG.endpoint,
+      publishableKey: FC_CONFIG.publishableKey
+    });
+  } else {
+    showErr("对话组件没有加载成功，请刷新页面再试");
+  }
+} catch (e) {
+  console.error("云服务初始化失败", e);
+  showErr("对话组件初始化失败，请刷新页面再试");
+}
 
 function setGenerating(on) {
   generating = on;
@@ -312,23 +340,46 @@ async function sendMsg(text) {
     ...HISTORY.slice(-MAX_HISTORY)
   ];
 
+  if (!cloud) {
+    bub.innerHTML = nl2br("对话组件还没准备好，请刷新页面再试。");
+    showErr("对话组件未加载（SDK 载入失败）");
+    return;
+  }
   controller = new AbortController();
   setGenerating(true);
   let reply = "";
+  let usedModel = MODEL_ID;
+  const queue = [usedModel, ...MODEL_FALLBACKS.filter(m => m !== usedModel)];
   try {
-    for await (const chunk of cloud.llm.chat.completions.create({
-      model: MODEL_ID,
-      messages: ctx,
-      stream: true,
-      temperature: 0.9,
-      signal: controller.signal
-    })) {
-      const d = chunk.choices[0]?.delta;
-      if (d && d.content) {
-        if (!reply) bub.innerHTML = "";
-        reply += d.content;
-        bub.innerHTML = nl2br(reply) + '<span class="cur"></span>';
-        scrollBottom();
+    for (let attempt = 0; attempt < queue.length; attempt++) {
+      usedModel = queue[attempt];
+      try {
+        for await (const chunk of cloud.llm.chat.completions.create({
+          model: usedModel,
+          messages: ctx,
+          stream: true,
+          temperature: 0.9,
+          signal: controller.signal
+        })) {
+          const d = chunk.choices[0]?.delta;
+          if (d && d.content) {
+            if (!reply) bub.innerHTML = "";
+            reply += d.content;
+            bub.innerHTML = nl2br(reply) + '<span class="cur"></span>';
+            scrollBottom();
+          }
+        }
+        MODEL_ID = usedModel;   // 记住成功过的模型
+        break;
+      } catch (inner) {
+        const c = (inner && inner.error && inner.error.code) || "";
+        // 仅参数/模型类错误才降级重试，其他错误直接抛出
+        if (attempt < queue.length - 1 && (c === "request_invalid_parameter" || c === "request_model_not_found" || c === "model_not_found" || c === "model_not_granted")) {
+          console.warn("模型 " + usedModel + " 不可用（" + c + "），切换下一个");
+          reply = ""; bub.innerHTML = '<span class="dots"><span></span><span></span><span></span></span>';
+          continue;
+        }
+        throw inner;
       }
     }
     bub.innerHTML = nl2br(reply);
