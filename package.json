@@ -1,0 +1,12 @@
+{
+  "name": "forest-children-agents",
+  "version": "1.0.0",
+  "private": true,
+  "description": "森林诗网智能体对话服务（静态托管 + 混元 API 代理）",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "tencentcloud-sdk-nodejs-hunyuan": "^4.0.1000"
+  }
+}

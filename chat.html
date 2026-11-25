@@ -111,29 +111,7 @@ body{background:var(--p);min-height:100vh;display:flex;flex-direction:column;fon
 <div class="footnote">AI 内容由大模型生成，可能会有不准确的地方 · <a href="index.html">森林的孩子</a> · 森林之子 AI 智能体</div>
 
 <script src="agent-data.js"></script>
-<script src="sdk/workbuddy-cloud-sdk.js"></script>
 <script>
-/* SDK 兜底：本地自托管失败时按顺序尝试备用节点 */
-(function () {
-  if (window.WorkBuddyCloud) return;
-  var mirrors = [
-    "https://fastly.jsdelivr.net/npm/@tencent-ai/workbuddy-cloud-sdk@dev/lib/index.global.js",
-    "https://gcore.jsdelivr.net/npm/@tencent-ai/workbuddy-cloud-sdk@dev/lib/index.global.js"
-  ];
-  mirrors.forEach(function (u) {
-    if (window.WorkBuddyCloud) return;
-    var t = document.createElement("script");
-    t.src = u; t.async = false;
-    document.write(t.outerHTML);
-  });
-})();
-</script>
-<script>
-/* ── 云服务配置（来自 WorkBuddy 云服务 publicConfig）── */
-const FC_CONFIG = {
-  endpoint: "https://wbapp-eq8akyv0azugdhn1phnulk.app.workbuddy.host",
-  publishableKey: "wbpk_eq8AkyV0azugdhn1pHNuLK_zN0XPa8NArBP8KeLvgz30qQmiZTDrzh0"
-};
 
 /* ── 六个智能体人设 ── */
 const COMMON_RULES = `\n【通用规则】
@@ -240,8 +218,8 @@ function buildSystem() {
   return s;
 }
 const SYSTEM_PROMPT = buildSystem();
-const MODEL_PRIMARY = "hy4std";              // 混元 Hy4 旗舰（本应用已开通）
-const MODEL_FALLBACKS = ["deepseek-v4.1-flash", "glm-5.3-flash", "space-bunny"];  // 主模型不可用时的降级链
+const MODEL_PRIMARY = "hunyuan-lite";        // 腾讯云混元（免费档），由自有后端代理调用
+const MODEL_FALLBACKS = ["hunyuan-turbos-latest"];  // 主模型不可用时的降级链
 let MODEL_ID = MODEL_PRIMARY;
 const HISTORY = [];            // 本会话消息（仅内存，不保存）
 const MAX_HISTORY = 12;        // 送入模型的最近消息数
@@ -291,21 +269,6 @@ function showErr(m) {
 let generating = false, controller = null;
 const input = document.getElementById("input"), sendBtn = document.getElementById("send");
 
-let cloud = null;
-try {
-  if (window.WorkBuddyCloud) {
-    cloud = WorkBuddyCloud.createWorkBuddyCloud({
-      endpoint: FC_CONFIG.endpoint,
-      publishableKey: FC_CONFIG.publishableKey
-    });
-  } else {
-    showErr("对话组件没有加载成功，请刷新页面再试");
-  }
-} catch (e) {
-  console.error("云服务初始化失败", e);
-  showErr("对话组件初始化失败，请刷新页面再试");
-}
-
 function setGenerating(on) {
   generating = on;
   sendBtn.textContent = on ? "停止" : "发送";
@@ -340,41 +303,68 @@ async function sendMsg(text) {
     ...HISTORY.slice(-MAX_HISTORY)
   ];
 
-  if (!cloud) {
-    bub.innerHTML = nl2br("对话组件还没准备好，请刷新页面再试。");
-    showErr("对话组件未加载（SDK 载入失败）");
-    return;
-  }
   controller = new AbortController();
   setGenerating(true);
   let reply = "";
   let usedModel = MODEL_ID;
   const queue = [usedModel, ...MODEL_FALLBACKS.filter(m => m !== usedModel)];
+  const RETRYABLE = new Set(["request_invalid_parameter", "request_model_not_found", "model_not_found", "model_not_granted", "model_error"]);
+
+  async function askOnce(model) {
+    const resp = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model: model, messages: ctx }),
+      signal: controller.signal
+    });
+    if (!resp.ok || !resp.body) {
+      let code = "internal_" + resp.status, msg = "";
+      try { const j = await resp.json(); code = (j.error && j.error.code) || code; msg = (j.error && j.error.message) || ""; } catch (e) {}
+      const err = new Error(msg || ("HTTP " + resp.status)); err.error = { code: code, message: msg };
+      throw err;
+    }
+    const reader = resp.body.getReader();
+    const dec = new TextDecoder();
+    let buf = "";
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      let idx;
+      while ((idx = buf.indexOf("\n\n")) >= 0) {
+        const raw = buf.slice(0, idx); buf = buf.slice(idx + 2);
+        let ev = "", data = "";
+        for (const line of raw.split("\n")) {
+          if (line.startsWith("event:")) ev = line.slice(6).trim();
+          else if (line.startsWith("data:")) data += line.slice(5).trim();
+        }
+        if (!data) continue;
+        let d; try { d = JSON.parse(data); } catch (e) { continue; }
+        if (ev === "delta" && d.content) {
+          if (!reply) bub.innerHTML = "";
+          reply += d.content;
+          bub.innerHTML = nl2br(reply) + '<span class="cur"></span>';
+          scrollBottom();
+        } else if (ev === "error") {
+          const err = new Error(d.message || "model error"); err.error = d;
+          throw err;
+        }
+      }
+    }
+  }
+
   try {
     for (let attempt = 0; attempt < queue.length; attempt++) {
       usedModel = queue[attempt];
       try {
-        for await (const chunk of cloud.llm.chat.completions.create({
-          model: usedModel,
-          messages: ctx,
-          stream: true,
-          temperature: 0.9,
-          signal: controller.signal
-        })) {
-          const d = chunk.choices[0]?.delta;
-          if (d && d.content) {
-            if (!reply) bub.innerHTML = "";
-            reply += d.content;
-            bub.innerHTML = nl2br(reply) + '<span class="cur"></span>';
-            scrollBottom();
-          }
-        }
+        await askOnce(usedModel);
         MODEL_ID = usedModel;   // 记住成功过的模型
         break;
       } catch (inner) {
+        if (inner && inner.name === "AbortError") throw inner;
         const c = (inner && inner.error && inner.error.code) || "";
-        // 仅参数/模型类错误才降级重试，其他错误直接抛出
-        if (attempt < queue.length - 1 && (c === "request_invalid_parameter" || c === "request_model_not_found" || c === "model_not_found" || c === "model_not_granted")) {
+        // 仅模型/参数类错误才降级重试，其他错误直接抛出
+        if (attempt < queue.length - 1 && RETRYABLE.has(c)) {
           console.warn("模型 " + usedModel + " 不可用（" + c + "），切换下一个");
           reply = ""; bub.innerHTML = '<span class="dots"><span></span><span></span><span></span></span>';
           continue;
